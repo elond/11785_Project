@@ -1,62 +1,53 @@
 import numpy as np
 import tables
+import sys
 
-def one_hot_encode(read_list):
+def one_hot_encode(fragment_list):
     """
     Summary:
-    Converts a list of reads into their one-hot encoding representation
+        Converts a fragment into its one-hot encoding representation
     Parameters:
-    read_list: List of genetic reads
+        fragment_list: A list of genetic fragments
     Returns:
-    seq_tensor: List of one-hot encoded reads
+        one_hot_list: A numpy array of one-hot encoded fragments
     """
 
     mapping = dict(zip("ACGT", range(4)))
-    num_reads = len(read_list)
-    seq_len = len(read_list[0])
-    seq_tensor = []
-    for seq in read_list:
-        temp = np.zeros([seq_len, 4], dtype=int)
-        for nuc in range(seq_len):
-            if seq[nuc] in ["A","C","G","T"]:
-                pos = mapping[seq[nuc]]
-                temp[nuc, pos] = 1
-                seq_tensor.append(temp)
-    return np.array(seq_tensor)
+    one_hot_list = []
+    fragment_len = len(fragment_list[0])
+    for fragment in fragment_list:
+        fragment_onehot = np.zeros([fragment_len, 4], dtype="uint8")
+        for nuc in range(fragment_len):
+            if fragment[nuc] in ["A","C","G","T"]:
+                pos = mapping[fragment[nuc]]
+                fragment_onehot[nuc, pos] = 1
+        one_hot_list.append(fragment_onehot)
+    return np.array(one_hot_list)
 
 def cat_encode_fragment(fragment,dna_codon_mapping):
-    """
-    Summary:
-        Converts a single genetic fragment into its CAT-encoding
-    Parameters:
-        fragment: fragment of a genetic sequence
-        dna_codon_mapping: mapping of a DNA sequence with its associated codon
-    Returns:
-        cat_encoded_fragment: CAT-encoded fragment of a genetic sequence
-    """
-    result = np.zeros((3, (len(fragment) // 3), 21))
+    fragment_cat = np.zeros((3, (len(fragment) // 3), 21))
 
     for i in range(len(fragment) - 2):
 
         # 'N' means the base could not be identified due to DNA sequence quality, ignore
         # Maybe should remove the N from the sequence before encoding (scrubbing)
-        if 'N' in fragment[i:i+3]:
-          continue
+        if fragment[i:i+3] not in dna_codon_mapping.keys():
+            continue
         codon = dna_codon_mapping[fragment[i:i+3]]
 
         # i % 3 selects which of the 3 start position fragments to set
         # i // 3 slides forward in each fragment after setting for each start position
         # codon indexes the ones-hot
-        result[i % 3][i // 3][codon] = 1
+        fragment_cat[i % 3][i // 3][codon] = 1
 
-    return cat_encoded_fragment
+    return fragment_cat
 
-def cat_encode(sequence_list):
+def cat_encode(fragment_list):
     """
     Summary:
         Converts a list of genetic sequences into its CAT-encoding
     Parameters:
-        sequence_list: list of genetic sequences
+        fragment_list: list of genetic sequences
     Returns:
         encoded_sequence_array: numpy array of CAT-encoded sequences
     """
@@ -161,9 +152,9 @@ def cat_encode(sequence_list):
         "TAA": STOP,
     }
 
-    encoded_sequence_array = np.zeros((len(sequence_list), 3, len(sequence_list[0]) // 3, STOP + 1))
+    encoded_sequence_array = np.zeros((len(fragment_list), 3, (len(fragment_list[0]) // 3), 21), dtype="uint8")
 
-    for i, frag in enumerate(sequence_list):
-        encoded_sequence_array[i] = cat_encode_fragment(frag,dna_codon_mapping)
+    for i, fragment in enumerate(fragment_list):
+        encoded_sequence_array[i] = cat_encode_fragment(fragment,dna_codon_mapping)
 
     return encoded_sequence_array

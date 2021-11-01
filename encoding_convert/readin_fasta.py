@@ -1,21 +1,20 @@
 from Bio import SeqIO
+import sys
 
-def readin_fasta(input_file):
-    """
-    Summary:
-        Reads a fasta file into two lists. One contains all sequence names while
-        the other contains all genetic sequences
-    Parameters:
-        input_file: Path to input file
-    Returns:
-        fasta_name_list: List of sequence names
-        sequence_list: List of genetic sequences
-    """
-    fasta_name_list = []
-    sequence_list = []
+def readin_fasta(input_file, batch_size):
+    """Read fasta file with a fast, memory-efficient generator."""
+    title_list = []
+    seq_list = []
+    seq_num = len([1 for line in open(input_file) if line.startswith(">")])
 
-    for seq_record in SeqIO.parse(input_file, "fasta"):
-        fasta_name_list.append(seq_record.id)
-        sequence_list.append(str(seq_record.seq))
-
-    return fasta_name_list, sequence_list
+    for i, seq_record in enumerate(SeqIO.FastaIO.SimpleFastaParser(open(input_file)),1):
+        title, seq = seq_record
+        title_list.append(title)
+        seq_list.append(seq)
+        if i%batch_size == 0:
+            yield title_list, seq_list
+            title_list = []
+            seq_list = []
+        if i == seq_num:
+            print('Converted {} of {} fragments'.format(i, seq_num))
+            yield title_list, seq_list
