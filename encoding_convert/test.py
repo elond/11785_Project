@@ -5,9 +5,16 @@ import os
 import sys
 import time
 
-input_file = 
-fragment_gntr = readin_fasta(input_file, batch_size)
 
-for i,data in enumerate(fragment_gntr, 1):
-    title_list, fragment_list = data
-    if i%8 == 0:
+a = np.array([0,0,0,0])
+b = np.array([1,1,1,1])
+with open("testing_thing.npy", mode='ab') as f:
+    np.save(f, a)
+with open("testing_thing.npy", mode='ab') as f:
+    np.save(f, b)
+
+with open("testing_thing.npy", mode='rb') as f:
+    fsz = os.fstat(f.fileno()).st_size
+    out = np.load(f)
+    while f.tell() < fsz:
+        out = np.vstack((out, np.load(f)))

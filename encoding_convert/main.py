@@ -3,7 +3,7 @@ import os
 
 if __name__ == "__main__":
     datasets = ["GenBank/", "RefSeq/"]
-    input_file_names = ["neg_unique_reads.fasta", "pos_unique_reads.fasta"]
+    input_file_names = ["train_unique_reads.fasta", "val_unique_reads.fasta"]
     data_dir = "/home/esteban/Documents/School/Class_11785/Project/Data/"
     output_dir = data_dir + "NPY_Data/"
     batch_size = 10000
