@@ -16,6 +16,7 @@ def fasta_to_npy(input_file, output_path, batch_size):
         output_path: path to ouput files
     """
     fragment_gntr = readin_fasta(input_file, batch_size)
+    fold = input_file.split("/")[-1].split("_")[0]
 
     # Check whether the output directories exist
     if not(os.path.exists(output_path)):
@@ -35,14 +36,7 @@ def fasta_to_npy(input_file, output_path, batch_size):
         fragments_onehot = enc.one_hot_encode(fragment_list)
         fragments_cat = enc.cat_encode(fragment_list)
 
-        # Output npy files
-        if i%9 == 0 and i!=0:
-            output_npy_files(output_path, fragments_onehot, fragments_cat, title_list, "val")
-        elif i%10 == 0 and i!=0:
-            output_npy_files(output_path, fragments_onehot, fragments_cat, title_list, "test")
-            print("Converted {} fragments in {} seconds".format(i*batch_size*10,int(time.time()-start_time)))
-        else:
-            output_npy_files(output_path, fragments_onehot, fragments_cat, title_list, "train")
+        output_npy_files(output_path, fragments_onehot, fragments_cat, title_list, fold)
 
 def output_npy_files(output_path, fragments_onehot, fragments_cat,title_list,dataset):
     with open(output_path + "One_hot/{}_data.npy".format(dataset), mode='ab') as f:
