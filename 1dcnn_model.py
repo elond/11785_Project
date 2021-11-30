@@ -46,7 +46,7 @@ DEVICE = torch.device(DEV)
 #--------Hyperparameters-------------------------------------------------------#
 ################################################################################
 LR_LIST = [0.001]                                                               # What learning rate do you want?
-EPOCH_NUM = 10                                                                  # For how many epochs do you want to run the data?
+EPOCH_NUM = 1                                                                  # For how many epochs do you want to run the data?
 BATCH_SIZE_LIST = [128]                                                         # How big is the mini-batch size?
 window = 1 # 3 if one_hot and 1 if CAT
 PADDING_LIST = 0
@@ -119,7 +119,7 @@ class Net(nn.Module):
         self.conv3 = nn.Conv2d(conv2_hu, conv3_hu, window, stride)
         self.out_dim = int((self.out_dim - window)/stride + 1)
 
-        self.fc1 = nn.Linear(self.out_dim*conv3_hu, 8)
+        self.fc1 = nn.Linear(self.out_dim*conv3_hu, 9)
 
     def forward(self, x):
         x = x.float()
@@ -135,25 +135,25 @@ class Net(nn.Module):
 ################################################################################
 class LoadData(Dataset):
     def __init__(self, data, labels):
-        label_dict = {"data":0,"Adenovirus":1,"Astrovirus":2,"Calicivirus":3,"Enterovirus":4,
-                      "Hepatitis_A": 5, "Hepatitis_E":6, "Rotavirus":7,"Orthoreovirus":8}
         with open(data, mode='rb') as f:
             fsz = os.fstat(f.fileno()).st_size
             data_x = np.load(f)
-            i = 0
             while f.tell() < fsz:
-                data_x = np.vstack((data_x, np.load(f)))                                                  # Load the examples-------------#
-                i+=1
-        data_y = np.load(labels)                                                # Load the labels---------------#
-        #data_y = np.array([label_dict[species] for species in data_y.tolist()])
-        self.data = torch.from_numpy(data_x).permute(0,1,3,2)                     # Convert examples to tensor----# (This should be permute(0,2,1) for One_hot)
+                data_x = np.vstack((data_x, np.load(f)))                        # Load the examples-------------#
+        with open(labels, mode='rb') as f:
+            fsz = os.fstat(f.fileno()).st_size
+            data_y = np.load(f)
+            while f.tell() < fsz:
+                data_y = np.append(data_y, np.load(f))
+
+        self.data = torch.from_numpy(data_x).permute(0,1,3,2)                   # Convert examples to tensor----# (This should be permute(0,2,1) for One_hot)
         self.labels = torch.from_numpy(data_y.astype(int))                      # Convert labels to tensor------#
         self.len = len(data_y)                                                  # Determine length of dataset---#
 
     def __getitem__(self,index):                                                # Get item and length functions #
-        return self.data[index], self.labels[index]                             # used for data loader function-#                                                                                # Length function used for   #
-    def __len__(self):
-        return self.len
+        return self.data[index], self.labels[index]
+    def __len__(self):                                                          # Length function used for   #
+        return self.len                                                         # used for data loader function-#
 
 def weights_init(m):
     if isinstance(m, nn.Conv1d):
@@ -215,9 +215,16 @@ def RunDataset(loader, ml_data, device, net, csv_writer,network_name,fig_dir,t_t
             labels_list = np.concatenate((labels_list,labels.numpy()), axis = 0)
 
         #--------Classification metrics----------------------------------------#
-        tn, fp, fn, tp = confusion_matrix(labels_list, pred_list).ravel()           # true and false positives and negatives-#
-        pr,rc = score(labels_list, pred_list,average='macro')[0:2]                  # precision and recall-------------------#
+        cm = confusion_matrix(labels_list, pred_list)
+        print(cm)
+        fp = np.sum(cm,axis=0) - np.diag(cm)
+        fn = np.sum(cm,axis=1) - np.diag(cm)
+        tp = np.diag(cm)
+        tn = np.sum(cm) - (fp + fn + tp)
+        pr = tp/(tp+fp)                                                             # precision and recall-------------------#
+        rc = tp/(tp+fn)
         ac = (tp+tn) / (tn+tp+fp+fn)                                                # accuracy-------------------------------#
+        print(fp, tn)
         sp = tn/(tn+fp)                                                             # specifcity, tnr------------------------#
         f1 = 2*pr*rc/(pr+rc)                                                        # f1 score-------------------------------#
         fpr = fp/(fp+tn)
@@ -246,7 +253,7 @@ def RunDataset(loader, ml_data, device, net, csv_writer,network_name,fig_dir,t_t
 file_name = "{}{}_results.csv".format(OUTPUT_DIR,MODEL_NAME)
 with open(file_name, mode="a+") as output_csv:
     CSV_WRITER = csv.writer(output_csv, delimiter=',')
-    CSV_WRITER.writerow(["1st Hidden Units", "2nd Hidden Units", "3rd Hidden Units",
+    CSV_WRITER.writerow(["NetworkName","Encoding","1st Hidden Units", "2nd Hidden Units", "3rd Hidden Units",
                          "Window Size","Padding", "Batch Size", "LR", "Epochs",
                          "ML_Dataset","True Positives", "False Positives","True Negatives",
                          "False Negatives", "Accuracy", "Recall", "Precision",
@@ -254,11 +261,16 @@ with open(file_name, mode="a+") as output_csv:
 for x in range(NUM_DATA):
     for BATCH_SIZE in BATCH_SIZE_LIST:
         print("-"*20,"Loading Data", "-"*20)
+        print("Loading Training Data")
         TRAIN_DATASET = LoadData(TRAIN_DATA_FILE, TRAIN_LABEL_FILE)
         TRAIN_LOADER = DataLoader(dataset=TRAIN_DATASET, batch_size=BATCH_SIZE, shuffle=True)
+
+        print("Loading Validation Data")
         VALID_DATA = LoadData(VAL_DATA_FILE, VAL_LABEL_FILE)
         VAL_LOADER = DataLoader(dataset=VALID_DATA, batch_size=BATCH_SIZE, shuffle=False)
-        TEST_DATA = LoadData(TEST_DATA_FILE, TEST_LABEL_FILE)
+
+        print("Loading Testing Data")
+        TEST_DATA = LoadData(TEST_DATA_FILE,TEST_LABEL_FILE)
         TEST_LOADER = DataLoader(dataset=TEST_DATA, batch_size=BATCH_SIZE, shuffle=False)
         plt.ioff()
 
@@ -301,10 +313,10 @@ for x in range(NUM_DATA):
                         ################################################################################
                         #--------Plot the training loss over time--------------------------------------#
                         ################################################################################
-                        MINI_BATCH_LIST = range(1, len(TRAIN_MOV_AVG)+1)
+                        MINI_BATCH_LIST = range(1, len(TRAIN_MOV_AVG))
                         plt.figure()
-                        plt.plot(MINI_BATCH_LIST, TRAIN_MOV_AVG, label="50-Data Training loss")
-                        plt.plot(MINI_BATCH_LIST, VAL_MOV_AVG, label="50-Data Validation loss")
+                        plt.plot(MINI_BATCH_LIST, TRAIN_MOV_AVG[1:], label="50-Data Training loss")
+                        plt.plot(MINI_BATCH_LIST, VAL_MOV_AVG[1:], label="50-Data Validation loss")
                         plt.legend()
                         plt.xlabel("Training examples")
                         plt.ylabel("Loss")
@@ -317,7 +329,7 @@ for x in range(NUM_DATA):
                         with open(file_name, mode="a+") as output_csv:
                             CSV_WRITER = csv.writer(output_csv, delimiter=',')
                             DATA_LIST = {"Train": TRAIN_LOADER, "Validation": VAL_LOADER, "Test": TEST_LOADER}
-                            H_P_LIST = [fir_cnn_hu, sec_cnn_hu, thir_cnn_hu, window, PADDING_LIST, BATCH_SIZE, LEARNING_RATE, EPOCH_NUM]
+                            H_P_LIST = [NETWORK_NAME, encoding_type, fir_cnn_hu, sec_cnn_hu, thir_cnn_hu, window, PADDING_LIST, BATCH_SIZE, LEARNING_RATE, EPOCH_NUM]
                             for DATA_SET in DATA_LIST:
                                 print("Testing {} dataset...".format(DATA_SET))
                                 RunDataset(DATA_LIST[DATA_SET],DATA_SET,DEVICE,NETWORK,CSV_WRITER,"{}_2_{}_3_{}_ROC".format(NETWORK_NAME,str(sec_cnn_hu),str(thir_cnn_hu)),FIGURE_DIR,TRAIN_TIME,H_P_LIST)
