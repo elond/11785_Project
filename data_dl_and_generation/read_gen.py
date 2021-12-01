@@ -7,13 +7,14 @@ import os
 import sys
 import random
 import csv
+import time
 
 READ_LENGTH = 250
 NUM_OF_READS = 1e6
 dataset = "GenBank"
 out_path = "/home/esteban/Documents/School/Class_11785/Project/Data/{}/".format(dataset)
 data_csv = out_path + "read_info.csv"
-CreateCSV = True
+CreateCSV = False
 
 def CreateExpCSV(filename, RandomSelection, OutputDirectory):
     an_list, gs_list, mr_list, fold_list = [],[],[],[]
@@ -63,23 +64,30 @@ def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpc):
     fold_max_reads = [labeled_data.loc[labeled_data["fold1"] == fold, "Max.Reads"].sum() for fold in fold_list]
     percent_reads = fold_max_reads/sum(fold_max_reads)
     ex_sum = 0
+    print("Starting to generate reads for {}".format(fasta.split("/")[-1]))
     for i,fold in enumerate(fold_list):
+        start_time = time.time()
         reads = round(percent_reads[i]*rpc_1)
         fold_data = labeled_data[labeled_data["fold1"] == fold]
         seq_list = []
         seq_db = []
-        for seq_record in SeqIO.parse(fasta, "fasta"):
+        print("Uploading sequences")
+        for i,seq_record in enumerate(SeqIO.parse(fasta, "fasta"), start=1):
             if seq_record.id in fold_data.assembly_accession.tolist():
-                seq_list.append(str(seq_record.seq))
+                seq_list.extend([str(seq_record.seq)])
+            if i % 1000 == 0:
+                print("Uploaded {0} genomes in {1:.2f} seconds".format(i, time.time() - start_time))
 
-        print("Starting to generate reads for {}".format(fasta.split("/")[-1]))
-        rpg = round(reads/fold_data.shape[0])
+        print("Finished uploading {0} genomes in {1:.2f} seconds".format(len(seq_list), time.time()-start_time))
+        rpg = round(reads/len(seq_list))
 
-        ex = 0
-        for sequence in seq_list:
+        print("Generating reads for {}".format(fasta.split("/")[-1]))
+        new_start_time = time.time()
+        for i,sequence in enumerate(seq_list, start=1):
             seq_len = len(sequence)
             seq_range = seq_len-read_len + 1
             temp_rpg = rpg
+            ex = 0
             if seq_range < rpg:
                 temp_rpg = seq_range
                 ex = rpg - seq_range
@@ -99,11 +107,15 @@ def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpc):
             pos = random.sample(range(seq_range),temp_rpg)
             for x in range(temp_rpg):
                 read_list[x] = sequence[pos[x]:pos[x]+read_len]
-            seq_db.append(list(set(read_list)))
+            seq_db.extend(list(set(read_list)))
             ex_sum += ex
 
-        seq_db = list(set(sum(seq_db, [])))
-        print("Finished generating {} reads for {}".format(len(seq_db),fasta.split("/")[-1]))
+            if i % 1000 == 0:
+                print("Finished generating {0} unique sequences from {1} genomes in {2:.2f}".format(len(seq_db),i,time.time()-new_start_time))
+
+        print("Determining whether reads are unique")
+        seq_db = list(set(seq_db))
+        print("Finished generating {0} reads for {1} in {2:.2f}".format(len(seq_db),fasta.split("/")[-1], time.time()-start_time))
         ReadFolderCreation(seq_db, out_path, filename, label, fold)
 
 def ReadFolderCreation(read_list, out_path, fasta_name, label, fold):
