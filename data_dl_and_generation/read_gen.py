@@ -9,19 +9,22 @@ import random
 import csv
 
 READ_LENGTH = 250
-NUM_OF_READS = 2e6
-dataset = "RefSeq"
+NUM_OF_READS = 1e6
+dataset = "GenBank"
 out_path = "/home/esteban/Documents/School/Class_11785/Project/Data/{}/".format(dataset)
 data_csv = out_path + "read_info.csv"
+CreateCSV = True
 
 def CreateExpCSV(filename, RandomSelection, OutputDirectory):
-    an_list, gs_list, fold_list = [],[],[]
+    an_list, gs_list, mr_list, fold_list = [],[],[],[]
     print("Appending {} data to csv...".format(filename.split("/")[-1]))
     for seq_record in SeqIO.parse(filename, "fasta"):
         seq_len = len(seq_record)
-        if seq_len < 250:
-            continue
         gs_list.append(seq_len)
+        if seq_len < 250:
+            mr_list.append(1)
+        else:
+            mr_list.append(seq_len-250+1)
         an_list.append(seq_record.id)
         chance = random.random()
         if chance <= RandomSelection:
@@ -31,11 +34,22 @@ def CreateExpCSV(filename, RandomSelection, OutputDirectory):
 
     label_list = [filename.split("/")[-1].split("_")[0]]*len(an_list)
     data = {"fold1": fold_list, "assembly_accession": an_list,
-            "Genome.Size": gs_list, "Label": label_list}
+            "Genome.Size": gs_list,"Max.Reads": mr_list,"Label": label_list}
     csv_data = pd.DataFrame(data)
+
+    # Check to confirm each dataset has at least one genome
+    check_list = ["train","val"]
+    for val in csv_data["Label"].unique():
+        temp = csv_data[csv_data["Label"] == val]
+        check = [elem for elem in temp["fold1"].unique() if elem not in check_list]
+        for thing in check:
+            an = temp["assembly_accession"][0]
+            csv_data.loc[csv_data.assembly_accession == an] = thing
+
+    # Output
     csv_data.to_csv(OutputDirectory + "read_info.csv", mode="a", index=False, header=False)
 
-def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpg):
+def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpc):
     """
     Summary: Generates (read_len) bp long reads from input sequence
     Parameters:
@@ -43,8 +57,14 @@ def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpg):
     Returns:
         read_list: List of READ_LENGTH bp long reads
     """
+    fold_list = ["train","val"]
     labeled_data = content[content["Label"] == label]
-    for fold in ["train","val"]:
+    rpc_1 = rpc.loc[rpc["Label"] == label, "rpc"].values[0]
+    fold_max_reads = [labeled_data.loc[labeled_data["fold1"] == fold, "Max.Reads"].sum() for fold in fold_list]
+    percent_reads = fold_max_reads/sum(fold_max_reads)
+    ex_sum = 0
+    for i,fold in enumerate(fold_list):
+        reads = round(percent_reads[i]*rpc_1)
         fold_data = labeled_data[labeled_data["fold1"] == fold]
         seq_list = []
         seq_db = []
@@ -53,16 +73,34 @@ def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpg):
                 seq_list.append(str(seq_record.seq))
 
         print("Starting to generate reads for {}".format(fasta.split("/")[-1]))
+        rpg = round(reads/fold_data.shape[0])
+
+        ex = 0
         for sequence in seq_list:
-            seq_length = len(sequence)-read_len
+            seq_len = len(sequence)
+            seq_range = seq_len-read_len + 1
             temp_rpg = rpg
-            if seq_length < rpg:
-                temp_rpg = seq_length + 1
+            if seq_range < rpg:
+                temp_rpg = seq_range
+                ex = rpg - seq_range
+            if temp_rpg < 1:
+                temp_rpg = 1
+                seq_range = seq_len
+            if ex_sum > 0 and seq_range > rpg:
+                if seq_range - rpg - ex_sum < 0:
+                    diff = seq_range - rpg
+                    temp_rpg += diff
+                    ex_sum -= diff
+                else:
+                    temp_rpg += ex_sum
+                    ex_sum = 0
+
             read_list = [0]*temp_rpg
-            pos = random.sample(range(seq_length+1),temp_rpg)
+            pos = random.sample(range(seq_range),temp_rpg)
             for x in range(temp_rpg):
                 read_list[x] = sequence[pos[x]:pos[x]+read_len]
             seq_db.append(list(set(read_list)))
+            ex_sum += ex
 
         seq_db = list(set(sum(seq_db, [])))
         print("Finished generating {} reads for {}".format(len(seq_db),fasta.split("/")[-1]))
@@ -94,10 +132,10 @@ def ReadFolderCreation(read_list, out_path, fasta_name, label, fold):
     return
 
 # Code starts here
-if data_csv not in os.listdir(out_path):
+if CreateCSV == True:
     with open(data_csv, 'w') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["fold1","assembly_accession","Genome.Size","Label"])
+        writer.writerow(["fold1","assembly_accession","Genome.Size","Max.Reads","Label"])
     for filename in os.listdir(out_path):
         if filename.endswith(".fasta"):
             file_path = out_path+filename
@@ -106,10 +144,37 @@ if data_csv not in os.listdir(out_path):
 
 # Determine reads per genome
 content = pd.read_csv(out_path+"read_info.csv")
-rpg = int(NUM_OF_READS//len(content.assembly_accession))
+total_max_reads = content["Max.Reads"].sum()
+label_max_reads = [content.loc[content["Label"] == thing, "Max.Reads"].sum() for thing in content["Label"].unique()]
+
+standard_rpc = int(NUM_OF_READS//len(content["Label"].unique()))
+excess = [mr - standard_rpc for mr in label_max_reads]
+rpc = [standard_rpc]*len(content["Label"].unique())
+run_sum = 0
+pos_run_sum = 0
+for i,ex in enumerate(excess):
+    if ex < 0:
+        run_sum += ex
+        rpc[i] = label_max_reads[i]
+    if ex > 0:
+        pos_run_sum += ex
+if -run_sum > pos_run_sum:
+    maxi = pos_run_sum
+elif -run_sum < pos_run_sum:
+    maxi = -run_sum
+
+temp_list = [0]*len(excess)
+for i,ex in enumerate(excess):
+    if ex > 0:
+        temp_list[i] = ex
+ex_reads = (temp_list/sum(temp_list))*maxi
+ex_reads = [round(x) for x in ex_reads]
+rpc = [a + b for a, b in zip(rpc, ex_reads)]
+data = {"rpc": rpc, "Label": content["Label"].unique()}
+rpc = pd.DataFrame(data)
 
 for filename in os.listdir(out_path):
     if filename.endswith(".fasta"):
         file_path = out_path+filename
         label = int(filename.split("_")[0])
-        ReadGeneration(file_path, READ_LENGTH, out_path, label, filename, content, rpg)
+        ReadGeneration(file_path, READ_LENGTH, out_path, label, filename, content, rpc)

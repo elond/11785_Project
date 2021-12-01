@@ -16,16 +16,17 @@ def one_hot_encode(fragment_list):
     one_hot_list = []
     fragment_len = len(fragment_list[0])
     for fragment in fragment_list:
+        f_l = len(fragment)
         fragment_onehot = np.zeros([fragment_len, 4], dtype="uint8")
-        for nuc in range(fragment_len):
+        for nuc in range(f_l):
             if fragment[nuc] in ["A","C","G","T"]:
                 pos = mapping[fragment[nuc]]
                 fragment_onehot[nuc, pos] = 1
         one_hot_list.append(fragment_onehot)
     return np.array(one_hot_list)
 
-def cat_encode_fragment(fragment,dna_codon_mapping):
-    fragment_cat = np.zeros((3, (len(fragment) // 3), 21))
+def cat_encode_fragment(fragment,dna_codon_mapping, seq_len):
+    fragment_cat = np.zeros((3, (seq_len // 3), 21))
 
     for i in range(len(fragment) - 2):
 
@@ -155,6 +156,6 @@ def cat_encode(fragment_list):
     encoded_sequence_array = np.zeros((len(fragment_list), 3, (len(fragment_list[0]) // 3), 21), dtype="uint8")
 
     for i, fragment in enumerate(fragment_list):
-        encoded_sequence_array[i] = cat_encode_fragment(fragment,dna_codon_mapping)
+        encoded_sequence_array[i] = cat_encode_fragment(fragment,dna_codon_mapping,len(fragment_list[0]))
 
     return encoded_sequence_array
