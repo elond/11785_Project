@@ -2,7 +2,7 @@ import numpy as np
 import tables
 import sys
 
-def one_hot_encode(fragment_list):
+def one_hot_encode(fragment_list, fragment_len):
     """
     Summary:
         Converts a fragment into its one-hot encoding representation
@@ -14,7 +14,6 @@ def one_hot_encode(fragment_list):
 
     mapping = dict(zip("ACGT", range(4)))
     one_hot_list = []
-    fragment_len = len(fragment_list[0])
     for fragment in fragment_list:
         f_l = len(fragment)
         fragment_onehot = np.zeros([fragment_len, 4], dtype="uint8")
@@ -43,7 +42,7 @@ def cat_encode_fragment(fragment,dna_codon_mapping, seq_len):
 
     return fragment_cat
 
-def cat_encode(fragment_list):
+def cat_encode(fragment_list, fragment_len):
     """
     Summary:
         Converts a list of genetic sequences into its CAT-encoding
@@ -153,9 +152,9 @@ def cat_encode(fragment_list):
         "TAA": STOP,
     }
 
-    encoded_sequence_array = np.zeros((len(fragment_list), 3, (len(fragment_list[0]) // 3), 21), dtype="uint8")
+    encoded_sequence_array = np.zeros((len(fragment_list), 3, (fragment_len // 3), 21), dtype="uint8")
 
     for i, fragment in enumerate(fragment_list):
-        encoded_sequence_array[i] = cat_encode_fragment(fragment,dna_codon_mapping,len(fragment_list[0]))
+        encoded_sequence_array[i] = cat_encode_fragment(fragment,dna_codon_mapping,fragment_len)
 
     return encoded_sequence_array

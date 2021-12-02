@@ -110,7 +110,7 @@ def ReadGeneration(fasta, read_len, out_path, label, filename,content,rpc):
             seq_db.extend(list(set(read_list)))
             ex_sum += ex
 
-            if i % 1000 == 0:
+            if i % 50000 == 0:
                 print("Finished generating {0} unique sequences from {1} genomes in {2:.2f}".format(len(seq_db),i,time.time()-new_start_time))
 
         print("Determining whether reads are unique")

@@ -7,6 +7,7 @@ if __name__ == "__main__":
     data_dir = "/home/esteban/Documents/School/Class_11785/Project/Data/"
     output_dir = data_dir + "NPY_Data/"
     batch_size = 10000
+    fragment_len = 250
 
     # Checks to see if output directory exists and creates directory if non-existent
     if not(os.path.isdir(output_dir)):
@@ -18,4 +19,4 @@ if __name__ == "__main__":
             input_file = data_dir + dataset + input_file_name
             output_path = output_dir + dataset
             print("Converting {}".format(input_file))
-            fasta_to_npy(input_file, output_path, batch_size)
+            fasta_to_npy(input_file, output_path, batch_size, fragment_len)

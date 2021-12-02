@@ -5,7 +5,7 @@ import os
 import sys
 import time
 
-def fasta_to_npy(input_file, output_path, batch_size):
+def fasta_to_npy(input_file, output_path, batch_size, fragment_len):
     """
     Summary:
         Takes in an fasta input directory and converts the data into two NPY
@@ -33,8 +33,8 @@ def fasta_to_npy(input_file, output_path, batch_size):
     # Convert from a list of seqeunces
     for i,data in enumerate(fragment_gntr, 1):
         title_list, fragment_list = data
-        fragments_onehot = enc.one_hot_encode(fragment_list)
-        fragments_cat = enc.cat_encode(fragment_list)
+        fragments_onehot = enc.one_hot_encode(fragment_list, fragment_len)
+        fragments_cat = enc.cat_encode(fragment_list, fragment_len)
 
         output_npy_files(output_path, fragments_onehot, fragments_cat, title_list, fold)
 
