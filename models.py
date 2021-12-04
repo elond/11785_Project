@@ -42,7 +42,7 @@ class CNNLSTMNet(nn.Module):
         padding = 0
         self.CAT_encode = CAT_encode
         if CAT_encode:
-            window = 1
+            window = 3
             input_col = 3
             self.conv = nn.Conv2d(input_col,first_hu,(21,window),stride,padding)
             self.out_dim = int((input_rows + 2*padding - window)/stride + 1)
@@ -79,11 +79,11 @@ class CNNNet(nn.Module):
         padding = 0
         self.CAT_encode = CAT_encode
         if self.CAT_encode:
-            window = 1
+            window = 3
             conv_input_col = 3
             self.conv1 = nn.Conv2d(conv_input_col,conv1_hu,(21,window),stride,padding)
             self.out_dim = int((conv_input_rows + 2*padding - window)/stride + 1)
-            self.conv2 = nn.Conv2d(conv1_hu, conv2_hu,window,stride)
+            self.conv2 = nn.Conv2d(conv1_hu, conv2_hu,(1,window),stride)
             self.out_dim = int((self.out_dim - window)/stride + 1)
             self.fc1 = nn.Linear(self.out_dim*conv2_hu, 9)
 
