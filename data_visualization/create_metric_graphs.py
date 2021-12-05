@@ -11,67 +11,6 @@ df = pd.DataFrame(data, columns=['Dataset', 'NetworkName', 'Encoding', '1st Hidd
 
 ])
 
-"""
-#print(df[ df['NetworkName']=='CNNNet' ]['Accuracy'])
-
-def filter_CNN(row):
-    if row['NetworkName'].split('_')[0] == 'CNNNet' and row['ML_Dataset']=='Test':
-        return True
-    else:
-        return False
-
-def filter_LSTM(row):
-    if row['NetworkName'].split('_')[0] == 'LSTMNet' and row['ML_Dataset']=='Test':
-        return True
-    else:
-        return False
-
-def filter_CNNLSTM(row):
-    if row['NetworkName'].split('_')[0] == 'CNNLSTMNet' and row['ML_Dataset']=='Test':
-        return True
-    else:
-        return False
-
-def filter_all(row):
-    if row['ML_Dataset']=='Test':
-        return True
-    else:
-        return False
-"""
-"""
-# Get experiment with max AUROC #
-print("EXPERIMENT WITH MAX AUROC")
-m = df.apply(filter_all, axis=1)
-df0 = df[m]
-print(df0.loc[ df0['AUROC'].idxmax() ])
-print("-------------")
-print()
-
-# Get CNN Experiment with max AUROC #
-m = df.apply(filter_CNN, axis=1)
-df1 = df[m]
-print("CNN EXPERIMENT WITH MAX AUROC")
-print(df1.loc[ df1['AUROC'].idxmax() ])
-print("-------------")
-print()
-
-# Get LSTM Experiment with max AUROC #
-m = df.apply(filter_LSTM, axis=1)
-df2 = df[m]
-print("LSTM EXPERIMENT WITH MAX AUROC")
-print(df2.loc[ df2['AUROC'].idxmax() ])
-print("-------------")
-print()
-
-# Get CNNLSTM Experiment with max AUROC #
-m = df.apply(filter_CNNLSTM, axis=1)
-df3 = df[m]
-print("CNNLSTM EXPERIMENT WITH MAX AUROC")
-print(df3.loc[ df3['AUROC'].idxmax() ])
-print("-------------")
-print()
-"""
-
 DATASET = "Test"
 metrics = ['Accuracy', 'Recall', 'Precision', 'Specificity', 'F1 score', 'AUROC']
 datasets = ['GenBank', 'RefSeq']
