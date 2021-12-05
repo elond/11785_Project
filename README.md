@@ -12,6 +12,7 @@ The following is a description of the folders' contents:
   - data_dl_and_generation
     + read_gen.py
     + s0_project_data_dl.py
+      
     + s2_csv.py
   - encoding_convert
     + main.py
@@ -23,5 +24,6 @@ The following is a description of the folders' contents:
   - models.py
 3. Data Visualization
   - compare_encodings.py
+  - create_metric_graphs.py
 4. Results
   - final_results.csv
